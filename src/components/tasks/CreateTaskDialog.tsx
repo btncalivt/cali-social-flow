@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/contexts/AuthContext";
@@ -281,7 +280,7 @@ const CreateTaskDialog = ({ onTaskCreated }: { onTaskCreated: () => void }) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
                       {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.full_name || user.email}
