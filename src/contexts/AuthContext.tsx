@@ -3,10 +3,34 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { AppRole, Database } from '@/integrations/supabase/types';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
-type UserRole = Database['public']['Tables']['user_roles']['Row'];
+// Define our custom types instead of importing from types.ts
+export type AppRole = 
+  | 'admin'
+  | 'managing_editor'
+  | 'editor'
+  | 'designer'
+  | 'video_editor'
+  | 'caption_creator'
+  | 'seo_analyst'
+  | 'contributor'
+  | 'viewer';
+
+type Profile = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type UserRole = {
+  id: string;
+  user_id: string;
+  role: AppRole;
+  created_at: string;
+  updated_at: string;
+};
 
 interface AuthContextType {
   session: Session | null;
@@ -91,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      const userRoles = data.map(item => item.role);
+      const userRoles = data.map(item => item.role as AppRole);
       setRoles(userRoles);
     } catch (error) {
       console.error('Error fetching roles:', error);

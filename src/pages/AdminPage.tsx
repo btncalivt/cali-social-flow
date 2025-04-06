@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { AppRole, Database } from '@/integrations/supabase/types';
+import { AppRole } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +14,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertCircle, Plus, Users } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
-type UserWithRoles = Profile & { roles: AppRole[], email: string };
+type Profile = {
+  id: string;
+  avatar_url: string | null;
+  created_at: string;
+  full_name: string | null;
+  updated_at: string;
+};
+
+type UserWithRoles = Profile & { 
+  roles: AppRole[];
+  email: string;
+};
 
 const roleColors: Record<AppRole, string> = {
   'admin': 'bg-red-100 text-red-800',
@@ -116,7 +125,7 @@ const AdminPage = () => {
       roleData.forEach(role => {
         const user = userMap.get(role.user_id);
         if (user) {
-          user.roles.push(role.role);
+          user.roles.push(role.role as AppRole);
         }
       });
       
