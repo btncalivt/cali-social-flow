@@ -95,6 +95,9 @@ const AdminPage = () => {
   const [selectedRoles, setSelectedRoles] = useState<AppRole[]>([]);
   const [updatingRoles, setUpdatingRoles] = useState(false);
 
+  const [existingUsers, setExistingUsers] = useState<{id: string, email: string, name: string}[]>([]);
+  const [selectedExistingUserId, setSelectedExistingUserId] = useState<string>('');
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -133,6 +136,13 @@ const AdminPage = () => {
             });
           }
         });
+        
+        // Also build a list of existing users for the dropdown
+        setExistingUsers(typedAuthUsers.users.map(user => ({
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.full_name || ''
+        })));
       }
       
       if (typedRoleData && userMap.size > 0) {
@@ -182,9 +192,83 @@ const AdminPage = () => {
     });
   };
 
+  const handleExistingUserSelection = (userId: string) => {
+    setSelectedExistingUserId(userId);
+    const user = existingUsers.find(u => u.id === userId);
+    if (user) {
+      setNewUserName(user.name || '');
+      setNewUserEmail(user.email || '');
+    }
+  };
+
   const addUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (selectedExistingUserId) {
+      // Assign roles to an existing user
+      await assignRolesToExistingUser(selectedExistingUserId, newUserRoles);
+    } else {
+      // Create a new user
+      await createNewUser();
+    }
+  };
+  
+  const assignRolesToExistingUser = async (userId: string, userRoles: AppRole[]) => {
+    if (!userId || userRoles.length === 0) {
+      toast({
+        title: "Missing information",
+        description: "Please select a user and at least one role",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setAddingUser(true);
+      
+      // Delete any existing roles first
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+      
+      // Insert new roles
+      for (const role of userRoles) {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role: role
+          });
+          
+        if (roleError) throw roleError;
+      }
+      
+      toast({
+        title: "Roles assigned",
+        description: "Successfully assigned roles to the user",
+      });
+      
+      setIsAddUserOpen(false);
+      setSelectedExistingUserId('');
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserRoles(['viewer']);
+      
+      fetchUsers();
+    } catch (err: any) {
+      console.error('Error assigning roles:', err);
+      toast({
+        title: "Error",
+        description: err.message || "An error occurred while assigning roles",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingUser(false);
+    }
+  };
+  
+  const createNewUser = async () => {
     if (!newUserEmail || !newUserPassword || newUserRoles.length === 0) {
       toast({
         title: "Missing information",
@@ -205,6 +289,10 @@ const AdminPage = () => {
       });
       
       if (userError) throw userError;
+      
+      if (!userData || !userData.user) {
+        throw new Error('Failed to create user');
+      }
       
       const userId = userData.user.id;
       
@@ -399,42 +487,69 @@ const AdminPage = () => {
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>
-              Create a new team member account and assign them roles
+              Create a new team member account and assign them roles, or assign roles to an existing user
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={addUser}>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="user@example.com"
-                  required
-                />
+                <Label htmlFor="existing-user">Existing User</Label>
+                <Select 
+                  onValueChange={handleExistingUserSelection}
+                  value={selectedExistingUserId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an existing user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Create a new user</SelectItem>
+                    {existingUsers.map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.email} {user.name ? `(${user.name})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Select an existing user or create a new one
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  placeholder="John Doe"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  placeholder="Create a password"
-                  required
-                />
-              </div>
+              
+              {!selectedExistingUserId && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newUserEmail}
+                      onChange={(e) => setNewUserEmail(e.target.value)}
+                      placeholder="user@example.com"
+                      required={!selectedExistingUserId}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={newUserPassword}
+                      onChange={(e) => setNewUserPassword(e.target.value)}
+                      placeholder="Create a password"
+                      required={!selectedExistingUserId}
+                    />
+                  </div>
+                </>
+              )}
               <div className="space-y-2">
                 <Label>Roles</Label>
                 <div className="grid grid-cols-2 gap-2 mt-2">
@@ -467,7 +582,7 @@ const AdminPage = () => {
               </Button>
               <Button type="submit" disabled={addingUser || newUserRoles.length === 0}>
                 {addingUser ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {addingUser ? 'Adding...' : 'Add User'}
+                {addingUser ? 'Adding...' : selectedExistingUserId ? 'Assign Roles' : 'Add User'}
               </Button>
             </DialogFooter>
           </form>

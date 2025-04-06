@@ -93,6 +93,7 @@ const ProfilePage = () => {
       
       return data.publicUrl;
     } catch (error: any) {
+      console.error('Upload error:', error);
       toast({
         title: "Upload failed",
         description: error.message,
@@ -113,15 +114,25 @@ const ProfilePage = () => {
       
       if (avatarFile) {
         avatarPublicUrl = await uploadAvatar();
+        console.log('Avatar URL after upload:', avatarPublicUrl);
       }
       
-      await updateProfile({
+      // Make sure to include the user.id in the update
+      const updatedProfile = {
         id: user.id,
         full_name: fullName,
         avatar_url: avatarPublicUrl,
-        created_at: profile?.created_at || '',
         updated_at: new Date().toISOString(),
-      });
+      };
+      
+      if (!profile?.created_at) {
+        updatedProfile.created_at = new Date().toISOString();
+      } else {
+        updatedProfile.created_at = profile.created_at;
+      }
+      
+      console.log('Updating profile with:', updatedProfile);
+      await updateProfile(updatedProfile);
       
       toast({
         title: "Profile updated",
@@ -130,6 +141,7 @@ const ProfilePage = () => {
       
       setAvatarFile(null);
     } catch (error: any) {
+      console.error('Profile update error:', error);
       toast({
         title: "Update failed",
         description: error.message || "Failed to update profile",

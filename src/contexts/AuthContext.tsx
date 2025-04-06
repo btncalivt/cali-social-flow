@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +18,7 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, metadata?: UserMetadata) => Promise<void>;
+  signUp: (email: string, password: string, metadata?: UserMetadata) => Promise<any>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
 }
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
+      console.log('Profile fetched:', data);
       setProfile(data as Profile);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -147,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: "Your account has been created. You may need admin approval before you can sign in.",
       });
       
-      return Promise.resolve();
+      return data;
     } catch (error: any) {
       toast({
         title: "Registration failed",
@@ -182,24 +184,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return;
     
+    console.log('Updating profile with:', updates);
     try {
+      // Make sure we have the correct ID
+      if (!updates.id) {
+        updates.id = user.id;
+      }
+      
       const { data, error } = await supabase
         .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single();
+        .upsert(updates, {
+          onConflict: 'id',
+          returning: 'minimal'
+        });
 
       if (error) {
+        console.error('Upsert error:', error);
         throw error;
       }
-
-      setProfile(data as Profile);
+      
+      // Refetch profile to ensure we have the updated data
+      await fetchProfile(user.id);
+      
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
       });
     } catch (error: any) {
+      console.error('Profile update error:', error);
       toast({
         title: "Error updating profile",
         description: error.message,
@@ -233,3 +245,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+export type { AppRole };

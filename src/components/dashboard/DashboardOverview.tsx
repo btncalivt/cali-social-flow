@@ -1,9 +1,11 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { CalendarCheck, CheckSquare, ClipboardList, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import TaskSummary from './TaskSummary';
 import UpcomingPosts from './UpcomingPosts';
+import NewIdeaForm from '../ideas/NewIdeaForm';
 
 const DashboardOverview = () => {
   const { profile } = useAuth();
@@ -25,7 +27,7 @@ const DashboardOverview = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome DreamKeeper, {displayName}</p>
+        <p className="text-muted-foreground">Welcome, {displayName}</p>
       </div>
       
       {/* Stats Cards */}
@@ -58,6 +60,9 @@ const DashboardOverview = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* New Idea Form */}
+      <NewIdeaForm />
 
       {/* Tasks and Upcoming Posts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
