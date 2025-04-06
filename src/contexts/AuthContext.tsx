@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -186,15 +185,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     console.log('Updating profile with:', updates);
     try {
-      // Fixed: Ensure id is always set and not optional
-      const profileData = {
+      const profileData: Database['public']['Tables']['profiles']['Insert'] = {
         id: user.id, // Always set the ID explicitly
         full_name: updates.full_name || profile?.full_name || null,
         avatar_url: updates.avatar_url || profile?.avatar_url || null,
         updated_at: new Date().toISOString()
       };
       
-      // If we have created_at from existing profile, include it
       if (profile?.created_at) {
         profileData.created_at = profile.created_at;
       } else {
@@ -206,8 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase
         .from('profiles')
         .upsert(profileData, {
-          onConflict: 'id',
-          returning: 'minimal'
+          onConflict: 'id'
         });
 
       if (error) {
@@ -215,7 +211,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
-      // Refetch profile to ensure we have the updated data
       await fetchProfile(user.id);
       
       toast({

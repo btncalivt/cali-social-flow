@@ -32,7 +32,7 @@ export type Task = {
   };
 }
 
-// Updated Profile type to match Supabase schema
+// Updated Profile type to match Supabase schema and include created_at
 export type Profile = {
   id: string;
   full_name: string | null;
@@ -59,4 +59,3 @@ export type AppRole =
   | 'seo_analyst'
   | 'contributor'
   | 'viewer';
-
