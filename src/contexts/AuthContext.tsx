@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,7 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Setup auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         setSession(currentSession);
@@ -47,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
@@ -130,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, metadata?: UserMetadata): Promise<void> => {
+  const signUp = async (email: string, password: string, metadata?: UserMetadata) => {
     try {
       setLoading(true);
       const { data, error } = await supabase.auth.signUp({
@@ -149,6 +146,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: "Registration successful",
         description: "Your account has been created. You may need admin approval before you can sign in.",
       });
+      
+      return Promise.resolve();
     } catch (error: any) {
       toast({
         title: "Registration failed",

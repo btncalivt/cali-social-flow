@@ -93,9 +93,9 @@ const CreateTaskDialog = ({ onTaskCreated }: { onTaskCreated: () => void }) => {
     try {
       const taskData = {
         title: values.title,
-        platform: values.platform,
-        status: values.status,
-        priority: values.priority,
+        platform: values.platform as "instagram" | "facebook" | "twitter" | "youtube" | "tiktok" | "pinterest" | "threads",
+        status: values.status as "To Do" | "In Progress" | "In Review" | "Done",
+        priority: values.priority as "Low" | "Medium" | "High",
         assignee_id: values.assigneeId || null,
         due_date: values.dueDate ? values.dueDate.toISOString() : null,
         completed: values.completed,
