@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +25,17 @@ type Profile = {
 type UserWithRoles = Profile & { 
   roles: AppRole[];
   email: string;
+};
+
+type AuthUser = {
+  id: string;
+  email?: string;
+  [key: string]: any;
+};
+
+type AuthUsersResponse = {
+  users: AuthUser[];
+  [key: string]: any;
 };
 
 const roleColors: Record<AppRole, string> = {
@@ -71,7 +81,6 @@ const AdminPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // New user form state
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
@@ -79,7 +88,6 @@ const AdminPage = () => {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [addingUser, setAddingUser] = useState(false);
   
-  // Edit role state
   const [isEditRoleOpen, setIsEditRoleOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<AppRole>('viewer');
@@ -90,35 +98,31 @@ const AdminPage = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
         
       if (profilesError) throw profilesError;
       
-      // Fetch all users from auth schema (admin only endpoint)
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
       
       if (authError) throw authError;
       
-      // Fetch all roles
       const { data: roleData, error: rolesError } = await supabase
         .from('user_roles')
         .select('*');
         
       if (rolesError) throw rolesError;
       
-      // Type assertions to help TypeScript understand the data types
       const typedProfiles = profiles as Profile[];
+      const typedAuthUsers = authUsersData as AuthUsersResponse;
       const typedRoleData = roleData as { user_id: string; role: AppRole }[];
       
-      // Combine data
       const userMap = new Map<string, UserWithRoles>();
       
-      if (authUsers && authUsers.users && typedProfiles) {
+      if (typedAuthUsers && typedAuthUsers.users && typedProfiles) {
         typedProfiles.forEach(profile => {
-          const user = authUsers.users.find(u => u.id === profile.id);
+          const user = typedAuthUsers.users.find(u => u.id === profile.id);
           if (user) {
             userMap.set(user.id, {
               ...profile,
@@ -173,7 +177,6 @@ const AdminPage = () => {
     try {
       setAddingUser(true);
       
-      // Create user
       const { data: userData, error: userError } = await supabase.auth.admin.createUser({
         email: newUserEmail,
         password: newUserPassword,
@@ -185,7 +188,6 @@ const AdminPage = () => {
       
       const userId = userData.user.id;
       
-      // Add user role
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -195,7 +197,6 @@ const AdminPage = () => {
         
       if (roleError) throw roleError;
       
-      // Success!
       toast({
         title: "User added",
         description: `Successfully added user ${newUserEmail}`,
@@ -207,7 +208,6 @@ const AdminPage = () => {
       setNewUserPassword('');
       setNewUserRole('viewer');
       
-      // Reload users
       fetchUsers();
     } catch (err: any) {
       console.error('Error adding user:', err);
@@ -233,7 +233,6 @@ const AdminPage = () => {
     try {
       setUpdatingRole(true);
       
-      // First delete existing roles
       const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
@@ -241,7 +240,6 @@ const AdminPage = () => {
         
       if (deleteError) throw deleteError;
       
-      // Add new role
       const { error: insertError } = await supabase
         .from('user_roles')
         .insert({
@@ -363,7 +361,6 @@ const AdminPage = () => {
         </CardContent>
       </Card>
 
-      {/* Add User Dialog */}
       <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
         <DialogContent>
           <DialogHeader>
@@ -441,7 +438,6 @@ const AdminPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Role Dialog */}
       <Dialog open={isEditRoleOpen} onOpenChange={setIsEditRoleOpen}>
         <DialogContent>
           <DialogHeader>
