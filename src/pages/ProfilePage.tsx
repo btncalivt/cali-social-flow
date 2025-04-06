@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +39,6 @@ const ProfilePage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Basic validation - only images allowed
     if (!file.type.match('image.*')) {
       toast({
         title: "Invalid file type",
@@ -50,7 +48,6 @@ const ProfilePage = () => {
       return;
     }
     
-    // Show preview
     const reader = new FileReader();
     reader.onload = () => {
       setAvatarUrl(reader.result as string);
@@ -66,7 +63,6 @@ const ProfilePage = () => {
     setIsUploading(true);
     
     try {
-      // Check if avatars bucket exists, create if not
       const { data: buckets } = await supabase.storage.listBuckets();
       const avatarBucketExists = buckets?.some(bucket => bucket.name === 'avatars');
       
@@ -76,19 +72,16 @@ const ProfilePage = () => {
         });
       }
       
-      // Generate a unique file name
       const fileExt = avatarFile.name.split('.').pop();
       const fileName = `${user.id}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
       
-      // Upload the file
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, avatarFile);
       
       if (uploadError) throw uploadError;
       
-      // Get the public URL
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       
       return data.publicUrl;
@@ -117,7 +110,6 @@ const ProfilePage = () => {
         console.log('Avatar URL after upload:', avatarPublicUrl);
       }
       
-      // Make sure to include the user.id in the update
       const updatedProfile = {
         id: user.id,
         full_name: fullName,
@@ -125,9 +117,7 @@ const ProfilePage = () => {
         updated_at: new Date().toISOString(),
       };
       
-      if (!profile?.created_at) {
-        updatedProfile.created_at = new Date().toISOString();
-      } else {
+      if (profile && profile.created_at) {
         updatedProfile.created_at = profile.created_at;
       }
       

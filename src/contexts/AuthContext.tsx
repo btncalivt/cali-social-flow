@@ -186,14 +186,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     console.log('Updating profile with:', updates);
     try {
-      // Make sure we have the correct ID
-      if (!updates.id) {
-        updates.id = user.id;
+      // Fixed: Ensure id is always set and not optional
+      const profileData = {
+        id: user.id, // Always set the ID explicitly
+        full_name: updates.full_name || profile?.full_name || null,
+        avatar_url: updates.avatar_url || profile?.avatar_url || null,
+        updated_at: new Date().toISOString()
+      };
+      
+      // If we have created_at from existing profile, include it
+      if (profile?.created_at) {
+        profileData.created_at = profile.created_at;
+      } else {
+        profileData.created_at = new Date().toISOString();
       }
+      
+      console.log('Final profile data to upsert:', profileData);
       
       const { data, error } = await supabase
         .from('profiles')
-        .upsert(updates, {
+        .upsert(profileData, {
           onConflict: 'id',
           returning: 'minimal'
         });
