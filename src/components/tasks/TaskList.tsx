@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -17,21 +16,7 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import CreateTaskDialog from './CreateTaskDialog';
-
-interface Task {
-  id: string;
-  title: string;
-  status: 'To Do' | 'In Progress' | 'In Review' | 'Done';
-  due_date?: string;
-  platform: string;
-  assignee?: {
-    id: string;
-    full_name?: string;
-    email?: string;
-  };
-  priority: 'Low' | 'Medium' | 'High';
-  completed: boolean;
-}
+import { Task } from '@/types/supabase';
 
 const TaskList = () => {
   const { toast } = useToast();
@@ -54,7 +39,10 @@ const TaskList = () => {
           platform,
           assignee_id,
           priority,
-          completed
+          completed,
+          created_at,
+          updated_at,
+          created_by
         `);
       
       if (error) throw error;
@@ -85,8 +73,8 @@ const TaskList = () => {
             const profile = profiles.find((p: any) => p.id === id);
             const authUser = authUsers.find((u: any) => u.id === id);
             
-            assignees[id] = {
-              id,
+            assignees[id as string] = {
+              id: id as string,
               full_name: profile?.full_name,
               email: authUser?.email,
             };
@@ -97,10 +85,10 @@ const TaskList = () => {
       // Map tasks with assignee information
       const tasksWithAssignees = tasksData.map(task => ({
         ...task,
-        assignee: task.assignee_id ? assignees[task.assignee_id] : undefined
+        assignee: task.assignee_id ? assignees[task.assignee_id as string] : undefined
       }));
       
-      setTasks(tasksWithAssignees);
+      setTasks(tasksWithAssignees as Task[]);
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
       toast({

@@ -3,35 +3,9 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { AppRole, Profile } from '@/types/supabase';
 
-// Define our custom types instead of importing from types.ts
-export type AppRole = 
-  | 'admin'
-  | 'managing_editor'
-  | 'editor'
-  | 'designer'
-  | 'video_editor'
-  | 'caption_creator'
-  | 'seo_analyst'
-  | 'contributor'
-  | 'viewer';
-
-type Profile = {
-  id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type UserRole = {
-  id: string;
-  user_id: string;
-  role: AppRole;
-  created_at: string;
-  updated_at: string;
-};
-
+// Define user metadata type
 type UserMetadata = {
   full_name?: string;
 };
@@ -103,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      setProfile(data);
+      setProfile(data as Profile);
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
@@ -156,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, metadata?: UserMetadata) => {
+  const signUp = async (email: string, password: string, metadata?: UserMetadata): Promise<void> => {
     try {
       setLoading(true);
       const { data, error } = await supabase.auth.signUp({
@@ -175,8 +149,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: "Registration successful",
         description: "Your account has been created. You may need admin approval before you can sign in.",
       });
-
-      return data;
     } catch (error: any) {
       toast({
         title: "Registration failed",
@@ -223,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      setProfile(data);
+      setProfile(data as Profile);
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",

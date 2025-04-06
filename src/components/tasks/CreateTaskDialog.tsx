@@ -91,7 +91,7 @@ const CreateTaskDialog = ({ onTaskCreated }: { onTaskCreated: () => void }) => {
     setLoading(true);
     
     try {
-      const { error } = await supabase.from('tasks').insert({
+      const taskData = {
         title: values.title,
         platform: values.platform,
         status: values.status,
@@ -100,7 +100,11 @@ const CreateTaskDialog = ({ onTaskCreated }: { onTaskCreated: () => void }) => {
         due_date: values.dueDate ? values.dueDate.toISOString() : null,
         completed: values.completed,
         created_by: user?.id
-      });
+      };
+      
+      const { error } = await supabase
+        .from('tasks')
+        .insert(taskData);
       
       if (error) throw error;
       
