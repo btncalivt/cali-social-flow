@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,10 +39,10 @@ const AuthPage = () => {
       <div className="w-full max-w-md p-4">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-2">
-            <span className="text-cali-blue">BTN</span> Cali Social Flow
+            <span className="text-cali-blue">BTN</span> Cali OFC Social Media Team
           </h1>
           <p className="text-muted-foreground">
-            Social media management platform
+            Welcome Cali DreamKeeper
           </p>
         </div>
 
@@ -85,7 +84,7 @@ const AuthPage = () => {
                 />
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-4">
               <Button
                 type="submit"
                 className="w-full"
@@ -93,9 +92,15 @@ const AuthPage = () => {
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
+              <p className="text-sm text-muted-foreground text-center">
+                Contact your administrator if you are having issues logging in
+              </p>
             </CardFooter>
           </form>
         </Card>
+        <p className="text-sm text-muted-foreground text-center mt-4">
+          For help email support@btncaliofficial.com
+        </p>
       </div>
     </div>
   );
