@@ -1,4 +1,5 @@
 
+
 import { Database } from "@/integrations/supabase/types";
 import { PostgrestError } from "@supabase/supabase-js";
 
@@ -59,3 +60,4 @@ export type AppRole =
   | 'seo_analyst'
   | 'contributor'
   | 'viewer';
+
