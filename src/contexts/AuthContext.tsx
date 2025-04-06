@@ -1,8 +1,10 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole, Profile } from '@/types/supabase';
+import { Database } from '@/integrations/supabase/types';
 
 // Define user metadata type
 type UserMetadata = {
