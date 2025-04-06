@@ -1,11 +1,14 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { CalendarCheck, CheckSquare, ClipboardList, Clock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import TaskSummary from './TaskSummary';
 import UpcomingPosts from './UpcomingPosts';
 
 const DashboardOverview = () => {
+  const { profile } = useAuth();
+  const displayName = profile?.full_name || 'DreamKeeper';
+
   // Mock data - in a real app, this would come from an API or state
   const stats = [
     { title: 'Tasks Due Today', value: 5, icon: <Clock className="h-5 w-5 text-cali-blue" /> },
@@ -20,7 +23,10 @@ const DashboardOverview = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">Welcome DreamKeeper, {displayName}</p>
+      </div>
       
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
