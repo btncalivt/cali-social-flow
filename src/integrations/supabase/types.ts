@@ -33,6 +33,75 @@ export type Database = {
         }
         Relationships: []
       }
+      social_accounts: {
+        Row: {
+          created_at: string
+          id: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          updated_at: string
+          url: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          updated_at?: string
+          url: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: Database["public"]["Enums"]["platform_type"]
+          updated_at?: string
+          url?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assignee_id: string | null
+          completed: boolean
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          priority: Database["public"]["Enums"]["task_priority"]
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          completed?: boolean
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          priority?: Database["public"]["Enums"]["task_priority"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          completed?: boolean
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          platform?: Database["public"]["Enums"]["platform_type"]
+          priority?: Database["public"]["Enums"]["task_priority"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -84,6 +153,16 @@ export type Database = {
         | "seo_analyst"
         | "contributor"
         | "viewer"
+      platform_type:
+        | "instagram"
+        | "facebook"
+        | "twitter"
+        | "youtube"
+        | "tiktok"
+        | "pinterest"
+        | "threads"
+      task_priority: "Low" | "Medium" | "High"
+      task_status: "To Do" | "In Progress" | "In Review" | "Done"
     }
     CompositeTypes: {
       [_ in never]: never

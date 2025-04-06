@@ -1,153 +1,210 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, User } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
+import { Navigate } from 'react-router-dom';
 
 const ProfilePage = () => {
-  const { user, profile, updateProfile, roles } = useAuth();
+  const { user, profile, updateProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
-  const [fullName, setFullName] = useState(profile?.full_name || '');
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [fullName, setFullName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   
-  const getUserInitials = () => {
-    if (!fullName) return user?.email?.substring(0, 2).toUpperCase() || 'U';
-    return fullName.split(' ').map(part => part[0]).join('').toUpperCase().substring(0, 2);
-  };
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name || '');
+      setAvatarUrl(profile.avatar_url || '');
+    }
+  }, [profile]);
 
+  if (authLoading) {
+    return <div className="flex justify-center items-center h-[80vh]">Loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+  
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Basic validation - only images allowed
+    if (!file.type.match('image.*')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file.",
+        variant: "destructive",
+      });
       return;
     }
-    const file = e.target.files[0];
-    setAvatarFile(file);
     
-    // Preview image
+    // Show preview
     const reader = new FileReader();
-    reader.onload = (e) => {
-      setAvatarUrl(e.target?.result as string);
+    reader.onload = () => {
+      setAvatarUrl(reader.result as string);
     };
     reader.readAsDataURL(file);
+    
+    setAvatarFile(file);
   };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
+  
+  const uploadAvatar = async () => {
+    if (!avatarFile || !user) return null;
+    
+    setIsUploading(true);
     
     try {
-      setIsSaving(true);
+      // Check if avatars bucket exists, create if not
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const avatarBucketExists = buckets?.some(bucket => bucket.name === 'avatars');
       
-      // Upload avatar if changed
-      let finalAvatarUrl = profile?.avatar_url || null;
-      
-      if (avatarFile) {
-        setIsUploading(true);
-        
-        // Create a unique file path for the avatar
-        const fileExt = avatarFile.name.split('.').pop();
-        const filePath = `avatars/${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        
-        // Upload to Supabase Storage
-        const { data, error } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, avatarFile);
-          
-        if (error) throw error;
-        
-        // Get public URL
-        const { data: publicURLData } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-          
-        finalAvatarUrl = publicURLData.publicUrl;
-        setIsUploading(false);
+      if (!avatarBucketExists) {
+        await supabase.storage.createBucket('avatars', {
+          public: true,
+        });
       }
       
-      // Update profile
+      // Generate a unique file name
+      const fileExt = avatarFile.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+      
+      // Upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, avatarFile);
+      
+      if (uploadError) throw uploadError;
+      
+      // Get the public URL
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      return data.publicUrl;
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    
+    try {
+      let avatarPublicUrl = profile?.avatar_url || null;
+      
+      if (avatarFile) {
+        avatarPublicUrl = await uploadAvatar();
+      }
+      
       await updateProfile({
+        id: user.id,
         full_name: fullName,
-        avatar_url: finalAvatarUrl
+        avatar_url: avatarPublicUrl,
+        created_at: profile?.created_at || '',
+        updated_at: new Date().toISOString(),
       });
       
-    } catch (error: any) {
-      console.error('Error updating profile:', error);
       toast({
-        title: "Error updating profile",
-        description: error.message,
-        variant: "destructive"
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+      
+      setAvatarFile(null);
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
     }
   };
-
-  if (!user || !profile) {
-    return <div className="p-4">Loading profile...</div>;
-  }
-
+  
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+  
   return (
-    <div className="max-w-2xl mx-auto py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">My Profile</h1>
-        <p className="text-muted-foreground">Manage your account settings and profile</p>
-      </div>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
       
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <User className="mr-2 h-5 w-5" /> Profile Information
-          </CardTitle>
-          <CardDescription>Update your personal information</CardDescription>
+          <CardTitle>Personal Information</CardTitle>
+          <CardDescription>
+            Update your profile information
+          </CardDescription>
         </CardHeader>
-        
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
-            <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={avatarUrl || undefined} />
-                <AvatarFallback className="text-lg">{getUserInitials()}</AvatarFallback>
+            <div className="flex flex-col items-center space-y-4">
+              <Avatar className="w-24 h-24">
+                <AvatarImage src={avatarUrl} alt={fullName} />
+                <AvatarFallback className="text-lg">
+                  {fullName ? getInitials(fullName) : <User className="h-10 w-10" />}
+                </AvatarFallback>
               </Avatar>
               
-              <div className="space-y-2">
-                <Label htmlFor="avatar" className="block">Profile Picture</Label>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="relative"
-                    disabled={isUploading}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Change Avatar
-                    <Input
-                      id="avatar"
-                      type="file"
-                      accept="image/*"
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                      onChange={handleAvatarChange}
-                      disabled={isUploading}
-                    />
-                  </Button>
-                  {isUploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
-                </div>
+              <div className="flex flex-col items-center space-y-2">
+                <Label
+                  htmlFor="avatar"
+                  className="cursor-pointer text-sm font-medium text-primary"
+                >
+                  {isUploading ? (
+                    <span className="flex items-center">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </span>
+                  ) : (
+                    'Change Profile Picture'
+                  )}
+                </Label>
+                <Input
+                  id="avatar"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                  disabled={isUploading}
+                />
+                <span className="text-xs text-muted-foreground">
+                  PNG, JPG up to 2MB
+                </span>
               </div>
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" value={user.email} disabled className="bg-muted" />
-              <p className="text-xs text-muted-foreground">Your email cannot be changed</p>
+              <Input
+                id="email"
+                value={user.email || ''}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">
+                Email cannot be changed
+              </p>
             </div>
             
             <div className="space-y-2">
@@ -159,29 +216,17 @@ const ProfilePage = () => {
                 placeholder="Enter your full name"
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label>User Role</Label>
-              <div className="flex flex-wrap gap-2">
-                {roles.length > 0 ? (
-                  roles.map((role) => (
-                    <div key={role} className="bg-muted px-3 py-1 rounded-md text-sm">
-                      {role.replace('_', ' ')}
-                    </div>
-                  ))
-                ) : (
-                  <div className="bg-muted px-3 py-1 rounded-md text-sm">No Role Assigned</div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Contact an admin to change your role
-              </p>
-            </div>
           </CardContent>
-          
-          <CardFooter className="flex justify-end">
+          <CardFooter>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </Button>
           </CardFooter>
         </form>

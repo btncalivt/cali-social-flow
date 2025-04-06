@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertCircle, Plus, Users } from 'lucide-react';
+import { AlertCircle, Plus, Users, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Profile = {
   id: string;
@@ -84,14 +85,14 @@ const AdminPage = () => {
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
-  const [newUserRole, setNewUserRole] = useState<AppRole>('viewer');
+  const [newUserRoles, setNewUserRoles] = useState<AppRole[]>(['viewer']);
   const [newUserPassword, setNewUserPassword] = useState('');
   const [addingUser, setAddingUser] = useState(false);
   
-  const [isEditRoleOpen, setIsEditRoleOpen] = useState(false);
+  const [isEditRolesOpen, setIsEditRolesOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<AppRole>('viewer');
-  const [updatingRole, setUpdatingRole] = useState(false);
+  const [selectedRoles, setSelectedRoles] = useState<AppRole[]>([]);
+  const [updatingRoles, setUpdatingRoles] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -162,13 +163,31 @@ const AdminPage = () => {
     }
   }, [isAdmin]);
 
+  const handleRoleSelection = (role: AppRole) => {
+    setSelectedRoles(prev => {
+      if (prev.includes(role)) {
+        return prev.filter(r => r !== role);
+      }
+      return [...prev, role];
+    });
+  };
+
+  const handleNewUserRoleSelection = (role: AppRole) => {
+    setNewUserRoles(prev => {
+      if (prev.includes(role)) {
+        return prev.filter(r => r !== role);
+      }
+      return [...prev, role];
+    });
+  };
+
   const addUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newUserEmail || !newUserPassword) {
+    if (!newUserEmail || !newUserPassword || newUserRoles.length === 0) {
       toast({
         title: "Missing information",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields and select at least one role",
         variant: "destructive",
       });
       return;
@@ -188,14 +207,16 @@ const AdminPage = () => {
       
       const userId = userData.user.id;
       
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          role: newUserRole
-        });
-        
-      if (roleError) throw roleError;
+      for (const role of newUserRoles) {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role: role
+          });
+          
+        if (roleError) throw roleError;
+      }
       
       toast({
         title: "User added",
@@ -206,7 +227,7 @@ const AdminPage = () => {
       setNewUserEmail('');
       setNewUserName('');
       setNewUserPassword('');
-      setNewUserRole('viewer');
+      setNewUserRoles(['viewer']);
       
       fetchUsers();
     } catch (err: any) {
@@ -221,17 +242,24 @@ const AdminPage = () => {
     }
   };
   
-  const openEditRoleDialog = (userId: string, currentRoles: AppRole[]) => {
+  const openEditRolesDialog = (userId: string, currentRoles: AppRole[]) => {
     setEditingUserId(userId);
-    setSelectedRole(currentRoles[0] || 'viewer');
-    setIsEditRoleOpen(true);
+    setSelectedRoles([...currentRoles]);
+    setIsEditRolesOpen(true);
   };
   
-  const updateUserRole = async () => {
-    if (!editingUserId || !selectedRole) return;
+  const updateUserRoles = async () => {
+    if (!editingUserId || selectedRoles.length === 0) {
+      toast({
+        title: "Error",
+        description: "You must select at least one role",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
-      setUpdatingRole(true);
+      setUpdatingRoles(true);
       
       const { error: deleteError } = await supabase
         .from('user_roles')
@@ -240,31 +268,33 @@ const AdminPage = () => {
         
       if (deleteError) throw deleteError;
       
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: editingUserId,
-          role: selectedRole
-        });
-        
-      if (insertError) throw insertError;
+      for (const role of selectedRoles) {
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: editingUserId,
+            role: role
+          });
+          
+        if (insertError) throw insertError;
+      }
       
       toast({
-        title: "Role updated",
-        description: "User role has been updated successfully",
+        title: "Roles updated",
+        description: "User roles have been updated successfully",
       });
       
-      setIsEditRoleOpen(false);
+      setIsEditRolesOpen(false);
       fetchUsers();
     } catch (err: any) {
-      console.error('Error updating role:', err);
+      console.error('Error updating roles:', err);
       toast({
-        title: "Error updating role",
+        title: "Error updating roles",
         description: err.message,
         variant: "destructive",
       });
     } finally {
-      setUpdatingRole(false);
+      setUpdatingRoles(false);
     }
   };
 
@@ -301,7 +331,9 @@ const AdminPage = () => {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="py-8 text-center">Loading users...</div>
+            <div className="py-8 flex justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
           ) : users.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">No users found</div>
           ) : (
@@ -310,7 +342,7 @@ const AdminPage = () => {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
+                  <TableHead>Roles</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -339,7 +371,7 @@ const AdminPage = () => {
                         ))}
                         {user.roles.length === 0 && (
                           <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">
-                            No Role
+                            No Roles
                           </span>
                         )}
                       </div>
@@ -348,9 +380,9 @@ const AdminPage = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => openEditRoleDialog(user.id, user.roles)}
+                        onClick={() => openEditRolesDialog(user.id, user.roles)}
                       >
-                        Edit Role
+                        Edit Roles
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -366,7 +398,7 @@ const AdminPage = () => {
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>
-              Create a new team member account and assign them a role
+              Create a new team member account and assign them roles
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={addUser}>
@@ -403,22 +435,24 @@ const AdminPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select 
-                  value={newUserRole} 
-                  onValueChange={(value) => setNewUserRole(value as AppRole)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roleOptions.map(role => (
-                      <SelectItem key={role} value={role}>
+                <Label>Roles</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {roleOptions.map((role) => (
+                    <div key={role} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`role-${role}`}
+                        checked={newUserRoles.includes(role)}
+                        onCheckedChange={() => handleNewUserRoleSelection(role)}
+                      />
+                      <label
+                        htmlFor={`role-${role}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
                         {roleLabelMap[role]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -430,7 +464,8 @@ const AdminPage = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={addingUser}>
+              <Button type="submit" disabled={addingUser || newUserRoles.length === 0}>
+                {addingUser ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {addingUser ? 'Adding...' : 'Add User'}
               </Button>
             </DialogFooter>
@@ -438,47 +473,50 @@ const AdminPage = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditRoleOpen} onOpenChange={setIsEditRoleOpen}>
+      <Dialog open={isEditRolesOpen} onOpenChange={setIsEditRolesOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
+            <DialogTitle>Update User Roles</DialogTitle>
             <DialogDescription>
-              Update the role and permissions for this user
+              Select one or more roles for this user
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-role">Role</Label>
-              <Select 
-                value={selectedRole} 
-                onValueChange={(value) => setSelectedRole(value as AppRole)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roleOptions.map(role => (
-                    <SelectItem key={role} value={role}>
+              <Label>Roles</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {roleOptions.map((role) => (
+                  <div key={role} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`edit-role-${role}`}
+                      checked={selectedRoles.includes(role)}
+                      onCheckedChange={() => handleRoleSelection(role)}
+                    />
+                    <label
+                      htmlFor={`edit-role-${role}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
                       {roleLabelMap[role]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </label>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={() => setIsEditRoleOpen(false)}
-              disabled={updatingRole}
+              onClick={() => setIsEditRolesOpen(false)}
+              disabled={updatingRoles}
             >
               Cancel
             </Button>
             <Button 
-              onClick={updateUserRole}
-              disabled={updatingRole}
+              onClick={updateUserRoles}
+              disabled={updatingRoles || selectedRoles.length === 0}
             >
-              {updatingRole ? 'Saving...' : 'Save Changes'}
+              {updatingRoles ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {updatingRoles ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

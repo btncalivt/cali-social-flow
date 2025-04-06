@@ -32,6 +32,10 @@ type UserRole = {
   updated_at: string;
 };
 
+type UserMetadata = {
+  full_name?: string;
+};
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -40,6 +44,7 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, metadata?: UserMetadata) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
 }
@@ -151,6 +156,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signUp = async (email: string, password: string, metadata?: UserMetadata) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: metadata
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Registration successful",
+        description: "Your account has been created. You may need admin approval before you can sign in.",
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Registration failed",
+        description: error.message || "Failed to create account.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     try {
       setLoading(true);
@@ -209,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin,
     loading,
     signIn,
+    signUp,
     signOut,
     updateProfile,
   };

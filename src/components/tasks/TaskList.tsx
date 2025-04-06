@@ -1,5 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,98 +9,139 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Search, 
   Filter, 
-  Plus, 
   UserCircle2, 
   Calendar, 
   CheckCircle2, 
-  CircleDashed
+  CircleDashed,
+  Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import CreateTaskDialog from './CreateTaskDialog';
 
 interface Task {
   id: string;
   title: string;
   status: 'To Do' | 'In Progress' | 'In Review' | 'Done';
-  dueDate?: string;
+  due_date?: string;
   platform: string;
-  assignee?: string;
+  assignee?: {
+    id: string;
+    full_name?: string;
+    email?: string;
+  };
   priority: 'Low' | 'Medium' | 'High';
   completed: boolean;
 }
 
 const TaskList = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<string>('all');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  // Mock tasks data
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Create fan poll about favorite songs',
-      status: 'To Do',
-      dueDate: '2025-04-15',
-      platform: 'instagram',
-      assignee: 'John D.',
-      priority: 'Medium',
-      completed: false
-    },
-    {
-      id: '2',
-      title: 'Design album announcement graphics',
-      status: 'In Progress',
-      dueDate: '2025-04-10',
-      platform: 'facebook',
-      assignee: 'Sarah M.',
-      priority: 'High',
-      completed: false
-    },
-    {
-      id: '3',
-      title: 'Edit behind-the-scenes footage',
-      status: 'In Progress',
-      dueDate: '2025-04-12',
-      platform: 'youtube',
-      assignee: 'Michael K.',
-      priority: 'Medium',
-      completed: false
-    },
-    {
-      id: '4',
-      title: 'Schedule tweet about upcoming tour',
-      status: 'In Review',
-      dueDate: '2025-04-08',
-      platform: 'twitter',
-      assignee: 'Lisa T.',
-      priority: 'High',
-      completed: false
-    },
-    {
-      id: '5',
-      title: 'Prepare TikTok dance challenge',
-      status: 'To Do',
-      dueDate: '2025-04-18',
-      platform: 'tiktok',
-      assignee: 'Chris P.',
-      priority: 'Medium',
-      completed: false
-    },
-    {
-      id: '6',
-      title: 'Write captions for gallery post',
-      status: 'Done',
-      dueDate: '2025-04-05',
-      platform: 'instagram',
-      assignee: 'Alex W.',
-      priority: 'Low',
-      completed: true
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      
+      const { data: tasksData, error } = await supabase
+        .from('tasks')
+        .select(`
+          id,
+          title,
+          status,
+          due_date,
+          platform,
+          assignee_id,
+          priority,
+          completed
+        `);
+      
+      if (error) throw error;
+      
+      // Fetch user data for assignees
+      const userIds = tasksData
+        .map(task => task.assignee_id)
+        .filter(id => id !== null);
+      
+      const uniqueUserIds = [...new Set(userIds)];
+      
+      let assignees: Record<string, { id: string; full_name?: string; email?: string }> = {};
+      
+      if (uniqueUserIds.length > 0) {
+        // Get profiles for user names
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', uniqueUserIds);
+        
+        // Get auth users for emails
+        const { data: authUsersData } = await supabase.auth.admin.listUsers();
+        
+        if (profiles && authUsersData) {
+          const authUsers = (authUsersData as any).users || [];
+          
+          uniqueUserIds.forEach(id => {
+            const profile = profiles.find((p: any) => p.id === id);
+            const authUser = authUsers.find((u: any) => u.id === id);
+            
+            assignees[id] = {
+              id,
+              full_name: profile?.full_name,
+              email: authUser?.email,
+            };
+          });
+        }
+      }
+      
+      // Map tasks with assignee information
+      const tasksWithAssignees = tasksData.map(task => ({
+        ...task,
+        assignee: task.assignee_id ? assignees[task.assignee_id] : undefined
+      }));
+      
+      setTasks(tasksWithAssignees);
+    } catch (error: any) {
+      console.error('Error fetching tasks:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load tasks",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+  
+  useEffect(() => {
+    fetchTasks();
+  }, []);
   
   // Toggle task completion
-  const toggleTaskCompletion = (taskId: string) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
+  const toggleTaskCompletion = async (taskId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ completed: !currentStatus })
+        .eq('id', taskId);
+      
+      if (error) throw error;
+      
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, completed: !task.completed } : task
+      ));
+      
+      toast({
+        title: currentStatus ? "Task Incomplete" : "Task Completed",
+        description: `Task has been marked as ${currentStatus ? "incomplete" : "completed"}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update task",
+        variant: "destructive",
+      });
+    }
   };
   
   // Filter tasks
@@ -113,7 +156,8 @@ const TaskList = () => {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(task => 
         task.title.toLowerCase().includes(search) || 
-        task.assignee?.toLowerCase().includes(search) ||
+        task.assignee?.full_name?.toLowerCase().includes(search) ||
+        task.assignee?.email?.toLowerCase().includes(search) ||
         task.platform.toLowerCase().includes(search)
       );
     }
@@ -129,6 +173,8 @@ const TaskList = () => {
       twitter: 'bg-platform-twitter',
       tiktok: 'bg-platform-tiktok',
       youtube: 'bg-platform-youtube',
+      pinterest: 'bg-gray-400',
+      threads: 'bg-black',
     };
     
     return (
@@ -173,10 +219,7 @@ const TaskList = () => {
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-        <Button size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          New Task
-        </Button>
+        <CreateTaskDialog onTaskCreated={fetchTasks} />
       </div>
       
       {/* Search and Filter */}
@@ -227,57 +270,64 @@ const TaskList = () => {
       
       {/* Tasks List */}
       <Card className="bg-muted/30">
-        <ul className="divide-y">
-          {getFilteredTasks().map(task => (
-            <li key={task.id} className="p-4 hover:bg-muted/20 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="pt-0.5">
-                  <Checkbox
-                    checked={task.completed}
-                    onCheckedChange={() => toggleTaskCompletion(task.id)}
-                  />
-                </div>
-                
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <h3 className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                      {task.title}
-                    </h3>
-                    {getPlatformBadge(task.platform)}
+        {loading ? (
+          <div className="flex justify-center items-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-muted-foreground">Loading tasks...</span>
+          </div>
+        ) : (
+          <ul className="divide-y">
+            {getFilteredTasks().map(task => (
+              <li key={task.id} className="p-4 hover:bg-muted/20 transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className="pt-0.5">
+                    <Checkbox
+                      checked={task.completed}
+                      onCheckedChange={() => toggleTaskCompletion(task.id, task.completed)}
+                    />
                   </div>
                   
-                  <div className="flex flex-wrap gap-3 mt-3 text-sm text-muted-foreground">
-                    {task.assignee && (
-                      <div className="flex items-center">
-                        <UserCircle2 className="h-4 w-4 mr-1" />
-                        {task.assignee}
-                      </div>
-                    )}
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <h3 className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {task.title}
+                      </h3>
+                      {getPlatformBadge(task.platform)}
+                    </div>
                     
-                    {task.dueDate && (
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {new Date(task.dueDate).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </div>
-                    )}
-                    
-                    {getStatusBadge(task.status)}
-                    {getPriorityBadge(task.priority)}
+                    <div className="flex flex-wrap gap-3 mt-3 text-sm text-muted-foreground">
+                      {task.assignee && (
+                        <div className="flex items-center">
+                          <UserCircle2 className="h-4 w-4 mr-1" />
+                          {task.assignee.full_name || task.assignee.email || 'Unknown User'}
+                        </div>
+                      )}
+                      
+                      {task.due_date && (
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          {new Date(task.due_date).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
+                        </div>
+                      )}
+                      
+                      {getStatusBadge(task.status)}
+                      {getPriorityBadge(task.priority)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </li>
-          ))}
-          
-          {getFilteredTasks().length === 0 && (
-            <li className="p-8 text-center">
-              <p className="text-muted-foreground">No tasks match your search criteria.</p>
-            </li>
-          )}
-        </ul>
+              </li>
+            ))}
+            
+            {getFilteredTasks().length === 0 && (
+              <li className="p-8 text-center">
+                <p className="text-muted-foreground">No tasks match your search criteria.</p>
+              </li>
+            )}
+          </ul>
+        )}
       </Card>
     </div>
   );
