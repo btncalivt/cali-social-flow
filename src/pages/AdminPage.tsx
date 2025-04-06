@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -108,26 +109,34 @@ const AdminPage = () => {
         
       if (rolesError) throw rolesError;
       
+      // Type assertions to help TypeScript understand the data types
+      const typedProfiles = profiles as Profile[];
+      const typedRoleData = roleData as { user_id: string; role: AppRole }[];
+      
       // Combine data
       const userMap = new Map<string, UserWithRoles>();
       
-      profiles.forEach(profile => {
-        const user = authUsers.users.find(u => u.id === profile.id);
-        if (user) {
-          userMap.set(user.id, {
-            ...profile,
-            email: user.email || '',
-            roles: []
-          });
-        }
-      });
+      if (authUsers && authUsers.users && typedProfiles) {
+        typedProfiles.forEach(profile => {
+          const user = authUsers.users.find(u => u.id === profile.id);
+          if (user) {
+            userMap.set(user.id, {
+              ...profile,
+              email: user.email || '',
+              roles: []
+            });
+          }
+        });
+      }
       
-      roleData.forEach(role => {
-        const user = userMap.get(role.user_id);
-        if (user) {
-          user.roles.push(role.role as AppRole);
-        }
-      });
+      if (typedRoleData && userMap.size > 0) {
+        typedRoleData.forEach(role => {
+          const user = userMap.get(role.user_id);
+          if (user) {
+            user.roles.push(role.role as AppRole);
+          }
+        });
+      }
       
       setUsers(Array.from(userMap.values()));
     } catch (err: any) {
