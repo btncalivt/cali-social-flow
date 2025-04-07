@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -56,7 +56,7 @@ const NewIdeaForm = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   
-  useState(() => {
+  useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
@@ -69,13 +69,18 @@ const NewIdeaForm = () => {
         setUsers(data || []);
       } catch (err) {
         console.error('Error fetching users:', err);
+        toast({
+          title: "Error fetching users",
+          description: "Failed to load team members. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
     };
     
     fetchUsers();
-  });
+  }, [toast]);
   
   const handlePlatformChange = (platformId: string) => {
     setSelectedPlatforms(current => 
@@ -160,11 +165,15 @@ const NewIdeaForm = () => {
         inspirationUrl = await uploadInspiration();
       }
       
+      // Here you would typically save the idea to your database
+      // For now, we'll just show a success message
+      
       toast({
         title: "Idea added to board!",
         description: "Your content idea has been added successfully.",
       });
       
+      // Reset form
       setContent('');
       setContentType('');
       setSelectedPlatforms([]);
@@ -189,25 +198,27 @@ const NewIdeaForm = () => {
         <CardTitle>New Content Idea</CardTitle>
         <CardDescription>Share your content ideas with the team</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* Share your thoughts */}
         <div className="space-y-2">
           <Label htmlFor="content">Share your thoughts!</Label>
           <Textarea 
             id="content" 
-            placeholder="What's your content idea?"
+            placeholder="What's your content idea? Write it here..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="min-h-[100px]" 
+            className="min-h-[120px] resize-none" 
           />
         </div>
         
+        {/* Content Type */}
         <div className="space-y-2">
           <Label htmlFor="contentType">What type of content?</Label>
           <Select 
             value={contentType} 
             onValueChange={(value) => setContentType(value)}
           >
-            <SelectTrigger id="contentType">
+            <SelectTrigger id="contentType" className="w-full">
               <SelectValue placeholder="Select content type" />
             </SelectTrigger>
             <SelectContent>
@@ -218,6 +229,7 @@ const NewIdeaForm = () => {
           </Select>
         </div>
         
+        {/* Inspiration Upload */}
         <div className="space-y-2">
           <Label htmlFor="inspiration">Got an inspo?</Label>
           <div className="flex flex-col gap-3">
@@ -258,9 +270,10 @@ const NewIdeaForm = () => {
           </div>
         </div>
         
+        {/* Platforms */}
         <div className="space-y-3">
           <Label>Where to post?</Label>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {platforms.map(platform => (
               <div key={platform.id} className="flex items-center space-x-2">
                 <Checkbox 
@@ -279,13 +292,14 @@ const NewIdeaForm = () => {
           </div>
         </div>
         
+        {/* Assign To */}
         <div className="space-y-2">
           <Label htmlFor="assignee">Assign to</Label>
           <Select 
             value={assignedTo} 
             onValueChange={(value) => setAssignedTo(value)}
           >
-            <SelectTrigger id="assignee">
+            <SelectTrigger id="assignee" className="w-full">
               <SelectValue placeholder="Select a team member" />
             </SelectTrigger>
             <SelectContent>
@@ -300,7 +314,11 @@ const NewIdeaForm = () => {
         </div>
       </CardContent>
       <CardFooter className="flex justify-end">
-        <Button onClick={addToBoard} disabled={isSubmitting}>
+        <Button 
+          onClick={addToBoard} 
+          disabled={isSubmitting}
+          className="w-full md:w-auto"
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
