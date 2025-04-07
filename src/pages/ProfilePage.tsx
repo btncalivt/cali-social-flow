@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -117,12 +116,8 @@ const ProfilePage = () => {
         full_name: fullName,
         avatar_url: avatarPublicUrl,
         updated_at: new Date().toISOString(),
+        created_at: profile?.created_at || new Date().toISOString(),
       };
-      
-      // Only include created_at if the profile has it
-      if (profile && profile.created_at) {
-        updatedProfile.created_at = profile.created_at;
-      }
       
       console.log('Updating profile with:', updatedProfile);
       await updateProfile(updatedProfile);
