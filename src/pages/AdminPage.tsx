@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -137,7 +136,6 @@ const AdminPage = () => {
           }
         });
         
-        // Also build a list of existing users for the dropdown
         setExistingUsers(typedAuthUsers.users.map(user => ({
           id: user.id,
           email: user.email || '',
@@ -205,10 +203,8 @@ const AdminPage = () => {
     e.preventDefault();
     
     if (selectedExistingUserId) {
-      // Assign roles to an existing user
       await assignRolesToExistingUser(selectedExistingUserId, newUserRoles);
     } else {
-      // Create a new user
       await createNewUser();
     }
   };
@@ -226,13 +222,11 @@ const AdminPage = () => {
     try {
       setAddingUser(true);
       
-      // Delete any existing roles first
       await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', userId);
       
-      // Insert new roles
       for (const role of userRoles) {
         const { error: roleError } = await supabase
           .from('user_roles')
@@ -502,7 +496,7 @@ const AdminPage = () => {
                     <SelectValue placeholder="Select an existing user" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Create a new user</SelectItem>
+                    <SelectItem value="new">Create a new user</SelectItem>
                     {existingUsers.map(user => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.email} {user.name ? `(${user.name})` : ''}

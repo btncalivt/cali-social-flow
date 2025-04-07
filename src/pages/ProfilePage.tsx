@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -116,6 +117,7 @@ const ProfilePage = () => {
         full_name: fullName,
         avatar_url: avatarPublicUrl,
         updated_at: new Date().toISOString(),
+        // Use the existing created_at if available, or set a new one
         created_at: profile?.created_at || new Date().toISOString(),
       };
       

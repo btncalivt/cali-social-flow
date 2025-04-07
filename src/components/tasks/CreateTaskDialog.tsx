@@ -280,7 +280,7 @@ const CreateTaskDialog = ({ onTaskCreated }: { onTaskCreated: () => void }) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      <SelectItem value="none">Unassigned</SelectItem>
                       {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.full_name || user.email}

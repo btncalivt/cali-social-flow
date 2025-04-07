@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,7 +56,6 @@ const NewIdeaForm = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Fetch users for assignment dropdown
   useState(() => {
     const fetchUsers = async () => {
       setLoading(true);
@@ -91,7 +89,6 @@ const NewIdeaForm = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Simple file type validation
     const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     const validVideoTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
     
@@ -104,7 +101,6 @@ const NewIdeaForm = () => {
       return;
     }
     
-    // Create preview
     const reader = new FileReader();
     reader.onload = () => {
       setInspirationPreview(reader.result as string);
@@ -118,7 +114,6 @@ const NewIdeaForm = () => {
     if (!inspirationFile || !user) return null;
     
     try {
-      // Check if inspirations bucket exists, create if not
       const { data: buckets } = await supabase.storage.listBuckets();
       const bucketExists = buckets?.some(bucket => bucket.name === 'inspirations');
       
@@ -128,7 +123,6 @@ const NewIdeaForm = () => {
         });
       }
       
-      // Upload file
       const fileExt = inspirationFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       
@@ -138,7 +132,6 @@ const NewIdeaForm = () => {
       
       if (uploadError) throw uploadError;
       
-      // Get public URL
       const { data } = supabase.storage.from('inspirations').getPublicUrl(fileName);
       
       return data.publicUrl;
@@ -167,14 +160,11 @@ const NewIdeaForm = () => {
         inspirationUrl = await uploadInspiration();
       }
       
-      // In a real application, this would typically save to a database
-      // For now we'll just show a success message
       toast({
         title: "Idea added to board!",
         description: "Your content idea has been added successfully.",
       });
       
-      // Reset form
       setContent('');
       setContentType('');
       setSelectedPlatforms([]);
@@ -299,7 +289,7 @@ const NewIdeaForm = () => {
               <SelectValue placeholder="Select a team member" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
+              <SelectItem value="none">Unassigned</SelectItem>
               {users.map(user => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.full_name || 'Unnamed User'}
